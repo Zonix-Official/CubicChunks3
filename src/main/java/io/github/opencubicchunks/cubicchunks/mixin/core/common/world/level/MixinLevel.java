@@ -13,7 +13,9 @@ import io.github.notstirred.dasm.api.annotations.redirect.redirects.AddTransform
 import io.github.notstirred.dasm.api.annotations.selector.MethodSig;
 import io.github.notstirred.dasm.api.annotations.transform.TransformFromMethod;
 import io.github.opencubicchunks.cc_core.utils.Coords;
+import io.github.opencubicchunks.cubicchunks.CubicChunks;
 import io.github.opencubicchunks.cubicchunks.MarkableAsCubic;
+import io.github.opencubicchunks.cubicchunks.config.CommonConfig;
 import io.github.opencubicchunks.cubicchunks.mixin.dasmsets.ChunkToCloSet;
 import io.github.opencubicchunks.cubicchunks.mixin.dasmsets.ChunkToCubeSet;
 import io.github.opencubicchunks.cubicchunks.world.level.CubicLevel;
@@ -35,6 +37,7 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.material.FluidState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -75,6 +78,13 @@ public abstract class MixinLevel implements CubicLevel, MarkableAsCubic, LevelAc
             throw new IllegalStateException("Should always be able to create a cube!");
         } else {
             return cubeaccess;
+        }
+    }
+
+    @Inject(method = "<init>", at = @At(value = "io.github.opencubicchunks.cubicchunks.ConstructorSuper"))
+    private void cc_init(CallbackInfo ci) {
+        if(CubicChunks.config().shouldGenerateNewWorldsAsCC()) {
+            this.cc_setCubic();
         }
     }
 
