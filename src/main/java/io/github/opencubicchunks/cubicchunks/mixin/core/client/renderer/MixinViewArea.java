@@ -81,6 +81,7 @@ public abstract class MixinViewArea {
 
     // TODO can we do this with dasm + mixin? probably too messy
     // 1.21.6+ port by Zonix-Official of daporkchop_'s fast-path logic that was implemented to 1.12.2
+    @SuppressWarnings({ "checkstyle:CyclomaticComplexity", "checkstyle:JavaNCSS", "checkstyle:NPathComplexity" })
     @Inject(method = "repositionCamera", at = @At("HEAD"), cancellable = true)
     private void cc_onRepositionCamera(SectionPos newSectionPos, CallbackInfo ci) {
         if (!((CanBeCubic) level).cc_isCubic()) {
