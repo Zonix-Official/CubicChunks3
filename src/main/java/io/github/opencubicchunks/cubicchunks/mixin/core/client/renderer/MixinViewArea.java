@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.ViewArea;
 import net.minecraft.client.renderer.chunk.SectionRenderDispatcher;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
@@ -118,6 +119,19 @@ public abstract class MixinViewArea {
         this.cc_oldCameraZ = cameraZ;
 
         if (Math.abs(changeX) <= 1 && Math.abs(changeY) <= 1 && Math.abs(changeZ) <= 1) {
+            // fast-path: the camera has moved by at most one cube so we only need to perform updates along a 2d plane
+
+            /*
+             * d: 4
+             * 0123456789 0123456789 0123456789 0123456789 0123456789 .
+             * min: # min: # min: # min: # min: # .
+             * p: # p: # p: # p: # p: # .
+             * 0+p: # 0+p: * # 0+p: * # 0+p: * # 0+p: # .
+             * 1+p: # 1+p: # 1+p: * # 1+p: * # 1+p: # .
+             * 2+p: # 2+p: # 2+p: # 2+p: * # 2+p: # .
+             * 3+p: # 3+p: # 3+p: # 3+p: # 3+p: # .
+             */
+
             if (changeX != 0) {
                 int indexX = Math.floorMod(changeX < 0 ? minX - px : minX - px - 1, dx);
                 int originX = px + Math.floorMod(indexX - px, dx);
@@ -169,7 +183,15 @@ public abstract class MixinViewArea {
                     }
                 }
             }
+
+            // Run the original loop to validate all sections to be in the correct position
+            // (Doing this cancels out any benefits from skipping unchanged sections, but only runs with assertions enabled)
+
+            // TODO: Resolve conditions returns within cc_validateSectionNodePositions so this works like 1.12.2
+            // Zonix-Official attempted this originally, just is not exactly sure how to make it work with 1.21.6
+        //    assert (cc_validateSectionNodePositions(dx, dy, dz, px, py, pz)) : "Not all SectionNodes are in the correct position!";
         } else {
+            // Vanilla 1.21.6+ logic, just cleaner.
             for (int indexZ = 0; indexZ < dz; indexZ++) {
                 int idxz = indexZ * dy * dx;
                 int originZ = pz + Math.floorMod(indexZ - pz, dz);
@@ -198,6 +220,30 @@ public abstract class MixinViewArea {
         if (oldSectionNode != SectionPos.asLong(originX, originY, originZ)) {
             renderSection.setSectionNode(SectionPos.asLong(originX, originY, originZ));
         }
+    }
+
+    @Unique
+    private boolean cc_validateSectionNodePositions(int dx, int dy, int dz, int px, int py, int pz) {
+        for (int indexZ = 0; indexZ < dz; indexZ++) {
+            int idxz = indexZ * dy * dx;
+            int originZ = pz + Math.floorMod(indexZ - pz, dz);
+
+            for (int indexY = 0; indexY < dy; indexY++) {
+                int idxyz = idxz + indexY * dx;
+                int originY = py + Math.floorMod(indexY - py, dy);
+
+                for (int indexX = 0; indexX < dx; indexX++) {
+                    int originX = px + Math.floorMod(indexX - px, dx);
+
+                    SectionRenderDispatcher.RenderSection renderSection = this.sections[idxyz + indexX];
+                    BlockPos sectionOrigin = renderSection.getRenderOrigin();
+                    if (sectionOrigin.getX() != originX || sectionOrigin.getY() != originY || sectionOrigin.getZ() != originZ) {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
     }
 
     @Unique
